@@ -5,8 +5,21 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.{Cluster, MemberStatus}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest, HttpResponse, MediaTypes, StatusCodes}
-import akka.http.scaladsl.server.Directives.{complete, get, path, withRequestTimeout}
+import akka.http.scaladsl.model.{
+  ContentTypes,
+  HttpEntity,
+  HttpMethods,
+  HttpRequest,
+  HttpResponse,
+  MediaTypes,
+  StatusCodes
+}
+import akka.http.scaladsl.server.Directives.{
+  complete,
+  get,
+  path,
+  withRequestTimeout
+}
 import akka.http.scaladsl.server.{RequestContext, Route, RouteResult}
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.cluster.scaladsl.ClusterHttpManagementRoutes
@@ -34,16 +47,17 @@ object Douzero {
     val managementRoutes: Route = ClusterHttpManagementRoutes(cluster)
     val player: Route = Player(system)
     val routers: Array[Route] = Array(player)
-    val rootRouter:RequestContext => Future[RouteResult] = Route.seal(
+    val rootRouter: RequestContext => Future[RouteResult] = Route.seal(
       withRequestTimeout(
         10.seconds,
-        (_: HttpRequest) => HttpResponse(
-          StatusCodes.OK,
-          entity = HttpEntity(
-            ContentTypes.`application/json`,
-            """{"code":"fail","msg":"service timeout"}"""
+        (_: HttpRequest) =>
+          HttpResponse(
+            StatusCodes.OK,
+            entity = HttpEntity(
+              ContentTypes.`application/json`,
+              """{"code":"fail","msg":"service timeout"}"""
+            )
           )
-        )
       )(
         concat(
           routers: _*
@@ -53,14 +67,12 @@ object Douzero {
     Http(system)
       .newServerAt(
         interface = "localhost",
-        port = 3000
+        port = system.settings.config.getInt("jb.http.port")
       )
       .bind(concat(rootRouter, managementRoutes))
       .onComplete({
         case Failure(exception) => throw exception
-        case Success(value) => {
-
-        }
+        case Success(value)     => {}
       })
 
   }
