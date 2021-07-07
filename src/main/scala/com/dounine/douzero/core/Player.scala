@@ -298,7 +298,7 @@ object Player extends Json4sSupport {
                 players = Map(
                   0 -> CardInfo(
                     lastMove = "",
-                    playerCards = data.p0.split(""),
+                    playerCards = data.p0.replace("B","T").replace("大","D").replace("小","X").split(""),
                     playedCards = Seq.empty,
                     position = 0,
                     pushCardNum = 0,
@@ -306,7 +306,7 @@ object Player extends Json4sSupport {
                   ),
                   1 -> CardInfo(
                     lastMove = "",
-                    playerCards = data.p1.split(""),
+                    playerCards = data.p1.replace("B","T").replace("大","D").replace("小","X").split(""),
                     playedCards = Seq.empty,
                     position = 1,
                     pushCardNum = 0,
@@ -314,7 +314,7 @@ object Player extends Json4sSupport {
                   ),
                   2 -> CardInfo(
                     lastMove = "",
-                    playerCards = data.p2.split(""),
+                    playerCards = data.p2.replace("B","T").replace("大","D").replace("小","X").split(""),
                     playedCards = Seq.empty,
                     position = 2,
                     pushCardNum = 0,
