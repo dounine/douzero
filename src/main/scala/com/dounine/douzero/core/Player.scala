@@ -269,9 +269,9 @@ object Player extends Json4sSupport {
   )
 
   case class PkEntity(
+      p0: String,
       p1: String,
-      p2: String,
-      p3: String
+      p2: String
   ) extends BaseSerializer
 
   implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
@@ -298,7 +298,7 @@ object Player extends Json4sSupport {
                   players = Map(
                     0 -> CardInfo(
                       lastMove = "",
-                      playerCards = data.p1.split(""),
+                      playerCards = data.p0.split(""),
                       playedCards = Seq.empty,
                       position = 0,
                       pushCardNum = 0,
@@ -306,7 +306,7 @@ object Player extends Json4sSupport {
                     ),
                     1 -> CardInfo(
                       lastMove = "",
-                      playerCards = data.p2.split(""),
+                      playerCards = data.p1.split(""),
                       playedCards = Seq.empty,
                       position = 1,
                       pushCardNum = 0,
@@ -314,7 +314,7 @@ object Player extends Json4sSupport {
                     ),
                     2 -> CardInfo(
                       lastMove = "",
-                      playerCards = data.p3.split(""),
+                      playerCards = data.p2.split(""),
                       playedCards = Seq.empty,
                       position = 2,
                       pushCardNum = 0,
