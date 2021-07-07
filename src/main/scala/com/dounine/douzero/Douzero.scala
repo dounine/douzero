@@ -66,13 +66,15 @@ object Douzero {
     )
     Http(system)
       .newServerAt(
-        interface = "localhost",
+        interface = "0.0.0.0",
         port = system.settings.config.getInt("jb.http.port")
       )
       .bind(concat(rootRouter, managementRoutes))
       .onComplete({
         case Failure(exception) => throw exception
-        case Success(value)     => {}
+        case Success(value)     => {
+          println(s"running to port -> ${system.settings.config.getInt("jb.http.port")}")
+        }
       })
 
   }
