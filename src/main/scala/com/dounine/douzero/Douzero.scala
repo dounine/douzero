@@ -27,6 +27,7 @@ import akka.management.scaladsl.AkkaManagement
 import akka.stream.{FlowShape, Graph, SourceShape, SystemMaterializer}
 import akka.http.scaladsl.server.Directives._
 import com.dounine.douzero.core.Player
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.Future
@@ -34,6 +35,7 @@ import scala.util.{Failure, Success}
 
 object Douzero {
 
+  private val logger = LoggerFactory.getLogger(Douzero.getClass)
   def main(args: Array[String]): Unit = {
 
     implicit val system = ActorSystem(Behaviors.empty[NotUsed], "douzero")
@@ -74,8 +76,8 @@ object Douzero {
         case Failure(exception) => throw exception
         case Success(value) => {
           val config = system.settings.config
-          println(s"predict_url -> ${config.getString("jb.predict_url")}")
-          println(s"running to port -> ${config.getInt("jb.http.port")}")
+          logger.info(s">>>>> predict_url -> ${config.getString("jb.predict_url")}  <<<<<")
+          logger.info(s">>>>> running to port -> ${config.getInt("jb.http.port")} <<<<<")
         }
       })
 

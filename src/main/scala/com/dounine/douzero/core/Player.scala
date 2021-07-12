@@ -51,13 +51,16 @@ import akka.stream.scaladsl.{
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.http.scaladsl.model.HttpEntity
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import org.slf4j.LoggerFactory
 
+import java.time.LocalDateTime
 import scala.concurrent.duration._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 
 object Player extends Json4sSupport {
 
+  private val logger = LoggerFactory.getLogger(Player.getClass)
   implicit val serialization: Serialization.type = jackson.Serialization
   implicit val formats: Formats = DefaultFormats
 
@@ -237,7 +240,7 @@ object Player extends Json4sSupport {
                   .map(_.utf8String.jsonTo[Map[String, Any]])
                   .map(result => {
                     if (result("status").asInstanceOf[BigInt] != 0) {
-                      println(result)
+                      logger.error(result.toJson)
                       PushCardFail(
                         request,
                         result("message").asInstanceOf[String]
@@ -253,7 +256,7 @@ object Player extends Json4sSupport {
                   })
 
               case msg @ _ => {
-                println(msg)
+                logger.error(msg.toString)
                 Future.failed(new Exception(s"请求失败 $msg"))
               }
             }
@@ -290,6 +293,7 @@ object Player extends Json4sSupport {
       path("pk") {
         entity(as[PkEntity]) { data =>
           {
+            val begin = LocalDateTime.now()
             val source = Source.single(
               PushCard(
                 actionPosition = 0,
@@ -298,7 +302,11 @@ object Player extends Json4sSupport {
                 players = Map(
                   0 -> CardInfo(
                     lastMove = "",
-                    playerCards = data.p0.replace("B","T").replace("大","D").replace("小","X").split(""),
+                    playerCards = data.p0
+                      .replace("B", "T")
+                      .replace("大", "D")
+                      .replace("小", "X")
+                      .split(""),
                     playedCards = Seq.empty,
                     position = 0,
                     pushCardNum = 0,
@@ -306,7 +314,11 @@ object Player extends Json4sSupport {
                   ),
                   1 -> CardInfo(
                     lastMove = "",
-                    playerCards = data.p1.replace("B","T").replace("大","D").replace("小","X").split(""),
+                    playerCards = data.p1
+                      .replace("B", "T")
+                      .replace("大", "D")
+                      .replace("小", "X")
+                      .split(""),
                     playedCards = Seq.empty,
                     position = 1,
                     pushCardNum = 0,
@@ -314,7 +326,11 @@ object Player extends Json4sSupport {
                   ),
                   2 -> CardInfo(
                     lastMove = "",
-                    playerCards = data.p2.replace("B","T").replace("大","D").replace("小","X").split(""),
+                    playerCards = data.p2
+                      .replace("B", "T")
+                      .replace("大", "D")
+                      .replace("小", "X")
+                      .split(""),
                     playedCards = Seq.empty,
                     position = 2,
                     pushCardNum = 0,
@@ -349,7 +365,11 @@ object Player extends Json4sSupport {
                   merge.out ~> player ~> partition
 
                   partition.out(0) ~> Flow[Event].collect {
-                    case PushCardFinish(request, winPosition) =>
+                    case PushCardFinish(request, winPosition) => {
+                      logger.info(
+                        "request time -> " + java.time.Duration
+                          .between(begin, LocalDateTime.now())
+                      )
                       Map(
                         "code" -> "ok",
                         "data" -> Map(
@@ -369,6 +389,7 @@ object Player extends Json4sSupport {
                           )
                         )
                       )
+                    }
                     case PushCardFail(request, msg) => {
                       Map(
                         "code" -> "fail",
