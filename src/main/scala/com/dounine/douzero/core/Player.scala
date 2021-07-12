@@ -393,8 +393,7 @@ object Player extends Json4sSupport {
                 }
             })
 
-            val bb = sourceData.runWith(Sink.head[Map[String, Any]])
-            complete(bb)
+            complete(sourceData.take(1))
           }
         }
       }
