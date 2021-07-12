@@ -72,8 +72,10 @@ object Douzero {
       .bind(concat(rootRouter, managementRoutes))
       .onComplete({
         case Failure(exception) => throw exception
-        case Success(value)     => {
-          println(s"running to port -> ${system.settings.config.getInt("jb.http.port")}")
+        case Success(value) => {
+          val config = system.settings.config
+          println(s"predict_url -> ${config.getString("jb.predict_url")}")
+          println(s"running to port -> ${config.getInt("jb.http.port")}")
         }
       })
 
