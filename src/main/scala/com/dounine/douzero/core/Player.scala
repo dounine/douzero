@@ -320,13 +320,16 @@ object Player extends Json4sSupport {
               {
                 complete(
                   Source(0 until data.count)
+                    .map(i => {
+                      (i, LocalDateTime.now())
+                    })
                     .mapAsync(1) {
                       id =>
                         http
                           .singleRequest(
                             HttpRequest(
                               method = HttpMethods.GET,
-                              uri = data.url + s"/${id}/${data.sleep}"
+                              uri = data.url + s"/${id._1}/${data.sleep}"
                             )
                           )
                           .flatMap {
@@ -336,6 +339,13 @@ object Player extends Json4sSupport {
                                   SystemMaterializer(system).materializer
                                 )
                                 .map(_.utf8String.jsonTo[Map[String, Any]])
+                                .map(r => {
+                                  logger.info(
+                                    "time -> " + java.time.Duration
+                                      .between(id._2, LocalDateTime.now())
+                                  )
+                                  r
+                                })
                                 .map(Right.apply)
                             case msg =>
                               Future.successful(Left(new Exception("error")))
@@ -348,6 +358,71 @@ object Player extends Json4sSupport {
           }
         } ~
           path("merge2") {
+            entity(as[MergeInfo]) {
+              data =>
+                {
+                  complete(
+                    Source(0 until data.count)
+                      .map(i => {
+                        (i, LocalDateTime.now())
+                      })
+                      .mapAsync(1) {
+                        id =>
+                          http
+                            .singleRequest(
+                              HttpRequest(
+                                method = HttpMethods.POST,
+                                uri = data.url,
+                                entity = HttpEntity(
+                                  contentType =
+                                    MediaTypes.`application/x-www-form-urlencoded`,
+                                  string = Map(
+                                    "three_landlord_cards" -> "",
+                                    "player_position" -> "0",
+                                    "bomb_num" -> "0",
+                                    "card_play_action_seq" -> "",
+                                    "last_move_landlord" -> "",
+                                    "last_move_landlord_down" -> "",
+                                    "last_move_landlord_up" -> "",
+                                    "num_cards_left_landlord" -> "20",
+                                    "num_cards_left_landlord_down" -> "17",
+                                    "num_cards_left_landlord_up" -> "17",
+                                    "player_hand_cards" -> "33344556JJJQK22XD5A2",
+                                    "other_hand_cards" -> "477888999TTTQQKA23456667789TJQKKAA",
+                                    "played_cards_landlord" -> "",
+                                    "played_cards_landlord_down" -> "",
+                                    "played_cards_landlord_up" -> ""
+                                  ).map(i => s"${i._1}=${i._2}")
+                                    .mkString("&")
+                                )
+                              )
+                            )
+                            .flatMap {
+                              case HttpResponse(_, _, entity, _) =>
+                                entity.dataBytes
+                                  .runFold(ByteString.empty)(_ ++ _)(
+                                    SystemMaterializer(system).materializer
+                                  )
+                                  .map(_.utf8String.jsonTo[Map[String, Any]])
+                                  .map(r => {
+                                    logger.info(
+                                      "time -> " + java.time.Duration
+                                        .between(id._2, LocalDateTime.now())
+                                    )
+                                    r
+                                  })
+                                  .map(Right.apply)
+                              case msg =>
+                                Future.successful(Left(new Exception("error")))
+                            }
+                      }
+                      .fold(0)((s, i) => if (i.isRight) s + 1 else s)
+                      .map(i => Map("code" -> "ok", "count" -> i))
+                  )
+                }
+            }
+          } ~
+          path("merge3") {
             entity(as[MergeInfo]) {
               data =>
                 {
