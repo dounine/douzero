@@ -57,6 +57,7 @@ import java.time.LocalDateTime
 import scala.concurrent.duration._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
+import scala.util.Random
 
 object Player extends JsonParse {
 
@@ -261,7 +262,6 @@ object Player extends JsonParse {
       p2: String
   ) extends BaseSerializer
 
-
   case class MergeInfo(
       url: String,
       count: Int,
@@ -332,6 +332,12 @@ object Player extends JsonParse {
             entity(as[MergeInfo]) {
               data =>
                 {
+                  val cards =
+                    "33344556JJJQK22XD5A2477888999TTTQQKA23456667789TJQKKAA"
+                      .split("")
+                  val randomCards =
+                    cards.sortBy(f => new Random().nextInt(cards.length))
+                  logger.info(randomCards.mkString(""))
                   complete(
                     Source(0 until data.count)
                       .map(i => {
@@ -358,8 +364,12 @@ object Player extends JsonParse {
                                     "num_cards_left_landlord" -> "20",
                                     "num_cards_left_landlord_down" -> "17",
                                     "num_cards_left_landlord_up" -> "17",
-                                    "player_hand_cards" -> "33344556JJJQK22XD5A2",
-                                    "other_hand_cards" -> "477888999TTTQQKA23456667789TJQKKAA",
+                                    "player_hand_cards" -> randomCards
+                                      .take(17)
+                                      .mkString(""),
+                                    "other_hand_cards" -> randomCards.takeRight(
+                                      randomCards.size - 17
+                                    ),
                                     "played_cards_landlord" -> "",
                                     "played_cards_landlord_down" -> "",
                                     "played_cards_landlord_up" -> ""
