@@ -318,7 +318,7 @@ object Player extends Json4sSupport {
             data =>
               {
                 complete(
-                  Source(0 unit data.count)
+                  Source(0 until data.count)
                     .mapAsync(1) {
                       id =>
                         http
