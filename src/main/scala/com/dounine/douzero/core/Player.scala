@@ -340,7 +340,7 @@ object Player extends Json4sSupport {
                               Future.successful(Left(new Exception("error")))
                           }
                     }
-                    .fold(0)((s, i) => if (i.isRight) 1 else 0)
+                    .fold(0)((s, i) => if (i.isRight) s + 1 else s)
                     .map(i => Map("code" -> "ok", "count" -> i))
                 )
               }
