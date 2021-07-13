@@ -58,32 +58,9 @@ import scala.concurrent.duration._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 
-object Player extends Json4sSupport {
+object Player extends JsonParse {
 
   private val logger = LoggerFactory.getLogger(Player.getClass)
-  implicit val serialization: Serialization.type = jackson.Serialization
-  implicit val formats: Formats = DefaultFormats
-
-  implicit class ToJson(data: Any) {
-    def toJson: String = {
-      write(data)
-    }
-
-    def logJson: String = {
-      write(
-        Map(
-          "__" -> data.getClass.getName,
-          "data" -> data
-        )
-      )
-    }
-  }
-
-  implicit class JsonTo(data: String) {
-    def jsonTo[T: Manifest]: T = {
-      read[T](data)
-    }
-  }
 
   sealed trait Event extends BaseSerializer
 
@@ -284,12 +261,6 @@ object Player extends Json4sSupport {
       p2: String
   ) extends BaseSerializer
 
-  implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
-    EntityStreamingSupport
-      .json()
-      .withFramingRenderer(
-        Flow[ByteString]
-      )
 
   case class MergeInfo(
       url: String,
@@ -477,7 +448,7 @@ object Player extends Json4sSupport {
                 }
             }
           } ~
-          path("pk") {
+          path("pk2") {
             entity(as[PkEntity]) {
               data =>
                 {

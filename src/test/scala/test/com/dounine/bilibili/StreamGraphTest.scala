@@ -1,11 +1,22 @@
 package test.com.dounine.bilibili
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  ScalaTestWithActorTestKit
+}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.{ClosedShape, Materializer, OverflowStrategy}
-import akka.stream.scaladsl.{BidiFlow, Flow, GraphDSL, RunnableGraph, Sink, Source, Zip}
+import akka.stream.scaladsl.{
+  BidiFlow,
+  Flow,
+  GraphDSL,
+  RunnableGraph,
+  Sink,
+  Source,
+  Zip
+}
 import akka.stream.typed.scaladsl.ActorSource
 import akka.util.ByteString
 import org.scalatest.matchers.should.Matchers
@@ -155,7 +166,24 @@ class StreamGraphTest
 
   "流" should {
 
-    "take" in {
+    "hi" in {
+      Source(0 until 3).runForeach(i=>info(i.toString))
+
+//      info(Array(0,0,1,1,2,3,4).drop(1).mkString(","))
+//      info((Set(1,2,3) &~ Set(1,2)).mkString(","))
+//      Array(1,2,3,4).combinations(4).map(_.mkString(",")+"\n").foreach(info(_))
+//      var a = 1
+//      var b = 3
+//
+//      a = a ^ b
+//      b = a ^ b
+//      a = a ^ b
+//
+//      info(s"${a} -> ${b}")
+
+    }
+
+    "take" ignore {
       Source(1 to 3)
         .takeWhile(_ > 4)
         .map(Right.apply)
