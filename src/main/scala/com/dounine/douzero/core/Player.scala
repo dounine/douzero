@@ -215,6 +215,7 @@ object Player extends Json4sSupport {
           )
 //          println("-------- ")
 //          println(data.mkString("\n"))
+          val begin = LocalDateTime.now()
           http
             .singleRequest(
               request = HttpRequest(
@@ -239,6 +240,10 @@ object Player extends Json4sSupport {
                   )
                   .map(_.utf8String.jsonTo[Map[String, Any]])
                   .map(result => {
+//                    logger.info(
+//                      "time -> " + java.time.Duration
+//                        .between(begin, LocalDateTime.now())
+//                    )
                     if (result("status").asInstanceOf[BigInt] != 0) {
                       logger.error(result.toJson)
                       PushCardFail(
@@ -285,139 +290,198 @@ object Player extends Json4sSupport {
         Flow[ByteString]
       )
 
+  case class MergeInfo(
+      url: String,
+      count: Int,
+      sleep: Int
+  )
   def apply(implicit system: ActorSystem[_]): Route = {
     implicit val ec = system.executionContext
     implicit val materializer = SystemMaterializer(system).materializer
+    val http = Http(system)
 
-    post {
-      path("pk") {
-        entity(as[PkEntity]) { data =>
+    concat(
+      get {
+        path("sleep" / IntNumber / IntNumber) { (id: Int, sleep: Int) =>
           {
-            val begin = LocalDateTime.now()
-            val source = Source.single(
-              PushCard(
-                actionPosition = 0,
-                bombNum = 0,
-                cardPlayActionSeq = Seq.empty,
-                players = Map(
-                  0 -> CardInfo(
-                    lastMove = "",
-                    playerCards = data.p0
-                      .replace("B", "T")
-                      .replace("大", "D")
-                      .replace("小", "X")
-                      .split(""),
-                    playedCards = Seq.empty,
-                    position = 0,
-                    pushCardNum = 0,
-                    maxCardNum = 0
-                  ),
-                  1 -> CardInfo(
-                    lastMove = "",
-                    playerCards = data.p1
-                      .replace("B", "T")
-                      .replace("大", "D")
-                      .replace("小", "X")
-                      .split(""),
-                    playedCards = Seq.empty,
-                    position = 1,
-                    pushCardNum = 0,
-                    maxCardNum = 0
-                  ),
-                  2 -> CardInfo(
-                    lastMove = "",
-                    playerCards = data.p2
-                      .replace("B", "T")
-                      .replace("大", "D")
-                      .replace("小", "X")
-                      .split(""),
-                    playedCards = Seq.empty,
-                    position = 2,
-                    pushCardNum = 0,
-                    maxCardNum = 0
-                  )
-                ),
-                threeLandlordCards = "".split("")
-              )
+            complete(
+              Source
+                .single(Map("code" -> "ok", "id" -> id))
+                .delay(sleep.milliseconds)
             )
-
-            val sourceData = Source.fromGraph(GraphDSL.create() {
-              implicit builder: GraphDSL.Builder[NotUsed] =>
+          }
+        }
+      },
+      post {
+        path("merge") {
+          entity(as[MergeInfo]) {
+            data =>
+              {
+                complete(
+                  Source(0 to data.count)
+                    .mapAsync(1) {
+                      id =>
+                        http
+                          .singleRequest(
+                            HttpRequest(
+                              method = HttpMethods.GET,
+                              uri = data.url + s"/${id}/${data.sleep}"
+                            )
+                          )
+                          .flatMap {
+                            case HttpResponse(_, _, entity, _) =>
+                              entity.dataBytes
+                                .runFold(ByteString.empty)(_ ++ _)(
+                                  SystemMaterializer(system).materializer
+                                )
+                                .map(_.utf8String.jsonTo[Map[String, Any]])
+                                .map(Right.apply)
+                            case msg =>
+                              Future.successful(Left(new Exception("error")))
+                          }
+                    }
+                    .fold(0)((s, i) => if (i.isRight) 1 else 0)
+                    .map(i => Map("code" -> "ok", "count" -> i))
+                )
+              }
+          }
+        } ~
+          path("pk") {
+            entity(as[PkEntity]) {
+              data =>
                 {
-                  import GraphDSL.Implicits._
-
-                  val merge = builder.add(Merge[Event](inputPorts = 2))
-                  val player = builder.add(createPlayer(system))
-                  val merge2 = builder.add(Merge[Map[String, Any]](1))
-                  val partition = builder.add(
-                    Partition[Event](
-                      2,
-                      {
-                        case PushCardFinish(request, winPosition) => 0
-                        case PushCardFail(_, msg)                 => 0
-                        case PushCardOk(_, _)                     => 1
-                        case PushCard(_, _, _, _, _)              => 1
-                      }
+                  val begin = LocalDateTime.now()
+                  val source = Source.single(
+                    PushCard(
+                      actionPosition = 0,
+                      bombNum = 0,
+                      cardPlayActionSeq = Seq.empty,
+                      players = Map(
+                        0 -> CardInfo(
+                          lastMove = "",
+                          playerCards = data.p0
+                            .replace("B", "T")
+                            .replace("大", "D")
+                            .replace("小", "X")
+                            .split(""),
+                          playedCards = Seq.empty,
+                          position = 0,
+                          pushCardNum = 0,
+                          maxCardNum = 0
+                        ),
+                        1 -> CardInfo(
+                          lastMove = "",
+                          playerCards = data.p1
+                            .replace("B", "T")
+                            .replace("大", "D")
+                            .replace("小", "X")
+                            .split(""),
+                          playedCards = Seq.empty,
+                          position = 1,
+                          pushCardNum = 0,
+                          maxCardNum = 0
+                        ),
+                        2 -> CardInfo(
+                          lastMove = "",
+                          playerCards = data.p2
+                            .replace("B", "T")
+                            .replace("大", "D")
+                            .replace("小", "X")
+                            .split(""),
+                          playedCards = Seq.empty,
+                          position = 2,
+                          pushCardNum = 0,
+                          maxCardNum = 0
+                        )
+                      ),
+                      threeLandlordCards = "".split("")
                     )
                   )
 
-                  source ~> merge.in(0)
-                  merge.out ~> player ~> partition
+                  val sourceData = Source.fromGraph(GraphDSL.create() {
+                    implicit builder: GraphDSL.Builder[NotUsed] =>
+                      {
+                        import GraphDSL.Implicits._
 
-                  partition.out(0) ~> Flow[Event].collect {
-                    case PushCardFinish(request, winPosition) => {
-                      logger.info(
-                        "request time -> " + java.time.Duration
-                          .between(begin, LocalDateTime.now())
-                      )
-                      Map(
-                        "code" -> "ok",
-                        "data" -> Map(
-                          "winPosition" -> request.actionPosition,
-                          "boom" -> request.bombNum,
-                          "p0" -> Map(
-                            "pushCardNum" -> request.players(0).pushCardNum,
-                            "maxCardNum" -> request.players(0).maxCardNum
-                          ),
-                          "p1" -> Map(
-                            "pushCardNum" -> request.players(1).pushCardNum,
-                            "maxCardNum" -> request.players(1).maxCardNum
-                          ),
-                          "p2" -> Map(
-                            "pushCardNum" -> request.players(2).pushCardNum,
-                            "maxCardNum" -> request.players(2).maxCardNum
+                        val merge = builder.add(Merge[Event](inputPorts = 2))
+                        val player = builder.add(createPlayer(system))
+                        val merge2 = builder.add(Merge[Map[String, Any]](1))
+                        val partition = builder.add(
+                          Partition[Event](
+                            2,
+                            {
+                              case PushCardFinish(request, winPosition) => 0
+                              case PushCardFail(_, msg)                 => 0
+                              case PushCardOk(_, _)                     => 1
+                              case PushCard(_, _, _, _, _)              => 1
+                            }
                           )
                         )
-                      )
-                    }
-                    case PushCardFail(request, msg) => {
-                      Map(
-                        "code" -> "fail",
-                        "msg" -> msg
-                      )
-                    }
-                  } ~> merge2
 
-                  partition.out(1) ~> Flow[Event].collect {
-                    case e @ PushCardOk(request, data) => e
-                    case e @ PushCard(
-                          actionPosition,
-                          bombNum,
-                          cardPlayActionSeq,
-                          players,
-                          threeLandlordCards
-                        ) =>
-                      e
-                  } ~> merge.in(1)
+                        source ~> merge.in(0)
+                        merge.out ~> player ~> partition
 
-                  SourceShape(merge2.out)
+                        partition.out(0) ~> Flow[Event].collect {
+                          case PushCardFinish(request, winPosition) => {
+                            logger.info(
+                              "request time -> " + java.time.Duration
+                                .between(begin, LocalDateTime.now())
+                            )
+                            Map(
+                              "code" -> "ok",
+                              "data" -> Map(
+                                "winPosition" -> request.actionPosition,
+                                "boom" -> request.bombNum,
+                                "p0" -> Map(
+                                  "pushCardNum" -> request
+                                    .players(0)
+                                    .pushCardNum,
+                                  "maxCardNum" -> request.players(0).maxCardNum
+                                ),
+                                "p1" -> Map(
+                                  "pushCardNum" -> request
+                                    .players(1)
+                                    .pushCardNum,
+                                  "maxCardNum" -> request.players(1).maxCardNum
+                                ),
+                                "p2" -> Map(
+                                  "pushCardNum" -> request
+                                    .players(2)
+                                    .pushCardNum,
+                                  "maxCardNum" -> request.players(2).maxCardNum
+                                )
+                              )
+                            )
+                          }
+                          case PushCardFail(request, msg) => {
+                            Map(
+                              "code" -> "fail",
+                              "msg" -> msg
+                            )
+                          }
+                        } ~> merge2
+
+                        partition.out(1) ~> Flow[Event].collect {
+                          case e @ PushCardOk(request, data) => e
+                          case e @ PushCard(
+                                actionPosition,
+                                bombNum,
+                                cardPlayActionSeq,
+                                players,
+                                threeLandlordCards
+                              ) =>
+                            e
+                        } ~> merge.in(1)
+
+                        SourceShape(merge2.out)
+                      }
+                  })
+
+                  complete(sourceData.take(1))
                 }
-            })
-
-            complete(sourceData.take(1))
+            }
           }
-        }
       }
-    }
+    )
   }
 }
