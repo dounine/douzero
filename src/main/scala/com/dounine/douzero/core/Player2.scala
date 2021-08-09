@@ -5,6 +5,7 @@ import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{
   as,
+  asSourceOf,
   complete,
   concat,
   entity,
@@ -30,7 +31,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContextExecutor, Future}
-
+import scala.concurrent.duration._
 object Player2 extends JsonParse {
   private val logger = LoggerFactory.getLogger(Player2.getClass)
 
@@ -293,38 +294,20 @@ object Player2 extends JsonParse {
             }
         case other => Future.successful(other)
       }
+      .idleTimeout(1.seconds)
   }
 
-  def process(
-      p0: String,
-      p1: String,
-      p2: String,
+  def process()(implicit
       system: ActorSystem[_]
-  ): Source[Map[String, Any], NotUsed] = {
+  ): Flow[InitCards, Map[String, Any], NotUsed] = {
     implicit val s = system
     implicit val ec = system.executionContext
     implicit val materializer = SystemMaterializer(system).materializer
 
-    Source.fromGraph(GraphDSL.create() {
+    Flow.fromGraph(GraphDSL.create() {
       implicit builder: GraphDSL.Builder[NotUsed] =>
         {
           import GraphDSL.Implicits._
-
-          val action: SourceShape[InitCards] = builder.add(
-            Source.single(
-              InitCards(
-                p0 = PlayerCardInfo(
-                  playerCards = p0.split("")
-                ),
-                p1 = PlayerCardInfo(
-                  playerCards = p1.split("")
-                ),
-                p2 = PlayerCardInfo(
-                  playerCards = p2.split("")
-                )
-              )
-            )
-          )
 
           val broadcast: UniformFanOutShape[InitCards, InitCards] =
             builder.add(Broadcast[InitCards](2))
@@ -394,7 +377,7 @@ object Player2 extends JsonParse {
            *                                    │ result │
            *                                    └────────┘
            */
-          action ~> broadcast ~> merge ~> room ~> partition
+          broadcast ~> merge ~> room ~> partition
 
           broadcast ~> zip.in0
 
@@ -404,7 +387,7 @@ object Player2 extends JsonParse {
             case win @ PushWin(_, _, _, _) => win
           } ~> zip.in1
 
-          SourceShape(zip.out)
+          FlowShape(broadcast.in, zip.out)
         }
     })
   }
@@ -415,14 +398,23 @@ object Player2 extends JsonParse {
     concat(
       post {
         path("pk") {
-          entity(as[PkEntity]) { data =>
+          entity(asSourceOf[PkEntity]) { source =>
             complete(
-              process(
-                p0 = data.p0,
-                p1 = data.p1,
-                p2 = data.p2,
-                system = system
-              )
+              source
+                .map(entity => {
+                  InitCards(
+                    p0 = PlayerCardInfo(
+                      playerCards = entity.p0.split("")
+                    ),
+                    p1 = PlayerCardInfo(
+                      playerCards = entity.p1.split("")
+                    ),
+                    p2 = PlayerCardInfo(
+                      playerCards = entity.p2.split("")
+                    )
+                  )
+                })
+                .via(process())
             )
           }
         }
